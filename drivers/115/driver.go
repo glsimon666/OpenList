@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/OpenListTeam/OpenList/v4/internal/driver"
+	"github.com/OpenListTeam/OpenList/v4/internal/fs"
 	"github.com/OpenListTeam/OpenList/v4/internal/model"
 	streamPkg "github.com/OpenListTeam/OpenList/v4/internal/stream"
 	"github.com/OpenListTeam/OpenList/v4/pkg/http_range"
@@ -67,16 +68,76 @@ func (d *Pan115) Link(ctx context.Context, file model.Obj, args model.LinkArgs) 
 	if err := d.WaitLimit(ctx); err != nil {
 		return nil, err
 	}
+
+	// 原有逻辑：获取UA、调用DownloadWithUA获取下载信息
 	userAgent := args.Header.Get("User-Agent")
-	downloadInfo, err := d.
-		DownloadWithUA(file.(*FileObj).PickCode, userAgent)
+	fileObj, ok := file.(*FileObj) // 显式类型转换（便于后续获取Size/Name）
+	if !ok {
+		return nil, fmt.Errorf("can't convert obj to FileObj")
+	}
+	downloadInfo, err := d.DownloadWithUA(fileObj.PickCode, userAgent)
 	if err != nil {
 		return nil, err
 	}
-	link := &model.Link{
-		URL:    downloadInfo.Url.Url,
-		Header: downloadInfo.Header,
+
+	// ========== 新增：ISO文件前10M缓存核心逻辑 ==========
+	var (
+		linkReader io.ReadCloser       // 混合流/远程流
+		contentLen int64 = fileObj.Size// ISO文件总大小（需确保FileObj有Size字段）
+		realURL    = downloadInfo.Url.Url // 115真实下载链接
+	)
+
+	// 1. 判断是否为ISO文件（通过文件名扩展名）
+	ext := filepath.Ext(fileObj.GetName()) // 需确保FileObj有GetName()方法
+	if ext == ".iso" {
+		log.Debugf("115 Pan ISO file detected: %s, fetch first 10M", fileObj.GetName())
+		
+		// 2. 构建请求头（复用原有Header + UA）
+		header := downloadInfo.Header.Clone() // 克隆原有Header，避免修改原数据
+		if header.Get("User-Agent") == "" {
+			header.Set("User-Agent", userAgent)
+		}
+
+		// 3. 拉取前10M到内存（带5秒超时）
+		isoCache, err := utils.FetchISOFirst10M(realURL, header)
+		if err != nil {
+			// 拉取失败：降级为原始逻辑（返回URL）
+			log.Warnf("115 Pan fetch ISO first 10M failed: %v, fallback to raw URL", err)
+			return &model.Link{
+				URL:    realURL,
+				Header: downloadInfo.Header,
+			}, nil
+		}
+
+		// 4. 创建混合读取器（前10M内存，其余远程）
+		hybridReader, err := fs.New115ISOHybridReader(isoCache, realURL, header)
+		if err != nil {
+			// 创建失败：释放缓存，降级为原始URL
+			utils.ReleaseBytes(isoCache)
+			log.Warnf("115 Pan create hybrid reader failed: %v, fallback to raw URL", err)
+			return &model.Link{
+				URL:    realURL,
+				Header: downloadInfo.Header,
+			}, nil
+		}
+		linkReader = hybridReader
 	}
+
+	// 5. 构建返回值（ISO文件用混合流，非ISO保留原有逻辑）
+	link := &model.Link{
+		Header: downloadInfo.Header, // 复用原有Header
+	}
+	if linkReader != nil {
+		// ISO文件：返回混合流（替换原有URL）
+		link.RangeReader = stream.GetRangeReaderFromMFile(contentLen, linkReader)
+		link.ContentLength = contentLen
+		link.RequireReference = true
+	} else {
+		// 非ISO文件：保留原有逻辑
+		link.URL = realURL
+	}
+	// ========== 新增逻辑结束 ==========
+
 	return link, nil
 }
 
