@@ -118,7 +118,7 @@ func getMainItems(config driver.Config) []driver.Item {
 				Name:     "webdav_policy",
 				Type:     conf.TypeSelect,
 				Options:  "302_redirect,use_proxy_url,native_proxy",
-				Default:  "302_redirect",
+				Default:  "native_proxy",
 				Required: true,
 			},
 			}...)
