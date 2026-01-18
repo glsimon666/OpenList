@@ -258,7 +258,7 @@ func cacheIsoFileParts(filePath, linkURL string, fileSize int64) error {
 	if firstPartSize > 0 {
 		headers := make(map[string]string)
 		headers["Range"] = fmt.Sprintf("bytes=0-%d", firstPartSize-1)
-		resp, err := net.RequestHttp(context.Background(), "GET", headers, linkURL)
+		resp, err := net.RequestHttp(context.Background(), "GET", http.Header(headers), linkURL)
 		if err != nil {
 			return fmt.Errorf("failed to download first part: %v", err)
 		}
@@ -295,7 +295,7 @@ func cacheIsoFileParts(filePath, linkURL string, fileSize int64) error {
 		
 		headers := make(map[string]string)
 		headers["Range"] = fmt.Sprintf("bytes=%d-", lastStart)
-		resp, err := net.RequestHttp(context.Background(), "GET", headers, linkURL)
+		resp, err := net.RequestHttp(context.Background(), "GET", http.Header(headers), linkURL)
 		if err != nil {
 			return fmt.Errorf("failed to download last part: %v", err)
 		}
@@ -355,7 +355,7 @@ func (r *IsoFileReader) RangeRead(ctx context.Context, httpRange http_range.Rang
 	// Otherwise, fetch from the original source
 	headers := make(map[string]string)
 	headers["Range"] = fmt.Sprintf("bytes=%d-%d", offset, offset+length-1)
-	resp, err := net.RequestHttp(ctx, "GET", headers, r.linkURL)
+	resp, err := net.RequestHttp(ctx, "GET", http.Header(headers), r.linkURL)
 	if err != nil {
 		return nil, err
 	}
