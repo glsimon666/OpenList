@@ -1,37 +1,34 @@
-```
-# Dependencies
-vendor/
+.idea/
+.DS_Store
+output/
+/dist/
 
-# Build artifacts
-*.o
-*.obj
-*.a
-*.so
-*.dll
+# Binaries for programs and plugins
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.db
+*.bin
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Logs
-*.log
+# Dependency directories (remove the comment below to include it)
+# vendor/
+/bin/*
+*.json
+/build
+/data/
+/tmp/
+/log/
+/lang/
+/daemon/
+/public/dist/*
+/!public/dist/README.md
 
-# Environment
-.env
-.env.local
-*.env.*
-
-# Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Temp files
-*.tmp
-.DS_Store
-Thumbs.db
-```
+.VSCodeCounter
