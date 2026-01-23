@@ -63,6 +63,7 @@ import (
 	_ "github.com/OpenListTeam/OpenList/v4/drivers/proton_drive"
 	_ "github.com/OpenListTeam/OpenList/v4/drivers/quark_open"
 	_ "github.com/OpenListTeam/OpenList/v4/drivers/quark_uc"
+	_ "github.com/OpenListTeam/OpenList/v4/drivers/quark_uc_share"
 	_ "github.com/OpenListTeam/OpenList/v4/drivers/quark_uc_tv"
 	_ "github.com/OpenListTeam/OpenList/v4/drivers/s3"
 	_ "github.com/OpenListTeam/OpenList/v4/drivers/seafile"
